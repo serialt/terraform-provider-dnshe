@@ -1,11 +1,8 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
@@ -13,80 +10,97 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/serialt/terraform-provider-dnshe/dnshe"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
+var _ provider.Provider = &DNSHEProvider{}
+var _ provider.ProviderWithFunctions = &DNSHEProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
-	// version is set to the provider version on release, "dev" when the
-	// provider is built and ran locally, and "test" when running acceptance
-	// testing.
+type DNSHEProvider struct {
 	version string
 }
-
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+type DNSHEProviderModel struct {
+	BaseURL   types.String `tfsdk:"base_url"`
+	ApiKey    types.String `tfsdk:"api_key"`
+	ApiSecret types.String `tfsdk:"api_secret"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *DNSHEProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "dnshe"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *DNSHEProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "DNSHE Terraform Provider，用于全自动化管理自定义二级域名及 DNS 解析记录。",
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+			"base_url": schema.StringAttribute{
+				MarkdownDescription: "base_url",
 				Optional:            true,
+			},
+			"api_key": schema.StringAttribute{
+				MarkdownDescription: "api_key",
+				Optional:            true,
+			},
+			"api_secret": schema.StringAttribute{
+				MarkdownDescription: "api_secret",
+				Optional:            true,
+				Sensitive:           true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
-
+func (p *DNSHEProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data DNSHEProviderModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	apiKey := os.Getenv("DNSHE_API_KEY")
+	apiSecret := os.Getenv("DNSHE_API_SECRET")
+	baseURL := data.BaseURL.ValueString()
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	if !data.ApiKey.IsNull() {
+		apiKey = data.ApiKey.ValueString()
+	}
+	if !data.ApiSecret.IsNull() {
+		apiSecret = data.ApiSecret.ValueString()
+	}
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
+	if apiKey == "" || apiSecret == "" {
+		resp.Diagnostics.AddError("凭证缺失", "必须配置 api_key 和 api_secret (或设置对应的环境变量)")
+		return
+	}
+
+	client := dnshe.NewClient(baseURL, apiKey, apiSecret)
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *DNSHEProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewExampleResource,
+		NewDNSRecordResource,
+		NewSubdomainResource,
 	}
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *DNSHEProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
+		NewDNSRecordsDataSource,
+		NewQuotaDataSource,
+		NewSubdomainDataSource,
+		NewSubdomainsDataSource,
 	}
 }
 
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
-	}
+func (p *DNSHEProvider) Functions(ctx context.Context) []func() function.Function {
+	return []func() function.Function{}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &DNSHEProvider{
 			version: version,
 		}
 	}
