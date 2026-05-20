@@ -2,7 +2,7 @@
 
 Terraform provider for [dnshe free domain](https://www.dnshe.com).
 
-[doc](https://registry.terraform.io/providers/serialt/nexus/latest/docs)
+[doc](https://registry.terraform.io/providers/serialt/dnshe/latest/docs)
 
 ## Development
 
