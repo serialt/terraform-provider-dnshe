@@ -1,10 +1,12 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccDataSourceDNSQuota(t *testing.T) {
@@ -17,12 +19,16 @@ func TestAccDataSourceDNSQuota(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					// resource.TestCheckResourceAttr("data.dnshe_subdomain.test_domain", "subdomain", "krab"),
 					// resource.TestCheckResourceAttrSet("data.dnshe_subdomain.test_domain", "id"),
-					resource.TestCheckResourceAttrWith("data.dnshe_dns_quota.test_quota", "total", func(value string) error {
-						fmt.Printf("\n======================= 🔍 DNSHE quota 🔍 =======================\n")
-						fmt.Printf("  total 值为 : %s", value)
-
+					func(s *terraform.State) error {
+						for _, ms := range s.RootModule().Resources {
+							fmt.Printf("唯一 ID : %s\n", ms.Primary.ID)
+							fmt.Printf("------------------------- 属性列表 (JSON 格式化) -------------------------\n")
+							jsonBytes, _ := json.MarshalIndent(ms, "", "  ")
+							fmt.Println(string(jsonBytes))
+							fmt.Printf("====================================================================\n\n")
+						}
 						return nil
-					}),
+					},
 				),
 			},
 		},
@@ -30,6 +36,6 @@ func TestAccDataSourceDNSQuota(t *testing.T) {
 }
 
 const testAccDataSourceDNSQuotaConfig = `
-data "dnshe_dns_quota" "test_quota" {
+data "dnshe_domain_quota" "test_quota" {
 }
 `

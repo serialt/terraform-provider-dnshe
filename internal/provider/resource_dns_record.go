@@ -2,24 +2,31 @@ package provider
 
 import (
 	"context"
-	"strconv"
+	"fmt"
+	"strings"
 
 	"github.com/serialt/terraform-provider-dnshe/dnshe"
+	"github.com/spf13/cast"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var _ resource.Resource = &dnsRecordResource{}
 
-type dnsRecordResource struct{ client *dnshe.Client }
+type dnsRecordResource struct {
+	client *dnshe.Client
+}
 
 type dnsRecordResourceModel struct {
-	ID          types.String `tfsdk:"id"` // 本地一般采用 RecordID 充当字符串 ID
+	ID          types.String `tfsdk:"id"`        // 组合 ID: dns_record#subdomain_id#record_id
+	RecordID    types.String `tfsdk:"record_id"` // API 返回的记录 ID
 	SubdomainID types.Int64  `tfsdk:"subdomain_id"`
 	Type        types.String `tfsdk:"type"`
 	Name        types.String `tfsdk:"name"`
@@ -29,15 +36,20 @@ type dnsRecordResourceModel struct {
 	Line        types.String `tfsdk:"line"`
 }
 
-func NewDNSRecordResource() resource.Resource { return &dnsRecordResource{} }
+func NewDNSRecordResource() resource.Resource {
+	return &dnsRecordResource{}
+}
+
 func (r *dnsRecordResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_dns_record"
 }
+
 func (r *dnsRecordResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData != nil {
 		r.client = req.ProviderData.(*dnshe.Client)
 	}
 }
+
 func (r *dnsRecordResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
@@ -45,13 +57,34 @@ func (r *dnsRecordResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
-			"subdomain_id": schema.Int64Attribute{Required: true},
-			"type":         schema.StringAttribute{Required: true},
-			"name":         schema.StringAttribute{Optional: true, Computed: true},
-			"content":      schema.StringAttribute{Required: true},
-			"ttl":          schema.Int64Attribute{Optional: true, Computed: true, Default: int64default.StaticInt64(600)},
-			"priority":     schema.Int64Attribute{Optional: true},
-			"line":         schema.StringAttribute{Optional: true, Computed: true},
+			"subdomain_id": schema.Int64Attribute{
+				Required: true,
+			},
+			"type": schema.StringAttribute{
+				Required: true,
+			},
+			"record_id": schema.StringAttribute{
+				Computed: true,
+			},
+			"name": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+			},
+			"content": schema.StringAttribute{
+				Required: true,
+			},
+			"ttl": schema.Int64Attribute{
+				Optional: true,
+				Computed: true,
+				Default:  int64default.StaticInt64(600),
+			},
+			"priority": schema.Int64Attribute{
+				Optional: true,
+			},
+			"line": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -63,12 +96,15 @@ func (r *dnsRecordResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
+	// 构建 API 请求
 	apiReq := dnshe.CreateDNSRecordRequest{
 		SubdomainID: int(data.SubdomainID.ValueInt64()),
 		Type:        data.Type.ValueString(),
 		Name:        data.Name.ValueString(),
 		Content:     data.Content.ValueString(),
 	}
+
+	// 处理可选字段
 	if !data.TTL.IsUnknown() && !data.TTL.IsNull() {
 		apiReq.TTL = int(data.TTL.ValueInt64())
 	}
@@ -80,15 +116,19 @@ func (r *dnsRecordResource) Create(ctx context.Context, req resource.CreateReque
 		apiReq.Line = data.Line.ValueString()
 	}
 
+	// 调用 API 创建记录
 	res, err := r.client.CreateDNSRecord(apiReq)
 	if err != nil {
-		resp.Diagnostics.AddError("创建解析记录失败", err.Error())
+		resp.Diagnostics.AddError("创建解析记录失败", fmt.Sprintf("SubdomainID: %d, Error: %v", apiReq.SubdomainID, err))
 		return
 	}
 
-	data.ID = types.StringValue(res.RecordID)
-	if data.Line.IsUnknown() {
-		data.Line = types.StringNull()
+	// 更新状态
+	data, err = r.fetchAndUpdateState(ctx, data, int(data.SubdomainID.ValueInt64()), res.ID)
+	if err != nil {
+		tflog.Error(ctx, "Failed to fetch created record", map[string]interface{}{"error": err.Error()})
+		resp.State.RemoveResource(ctx)
+		return
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -101,42 +141,16 @@ func (r *dnsRecordResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	// API 仅提供通过 subdomain_id 列出所有记录，因此我们通过遍历匹配目标 RecordID
-	res, err := r.client.ListDNSRecords(int(data.SubdomainID.ValueInt64()))
-	if err != nil {
-		resp.Diagnostics.AddError("拉取解析记录失败", err.Error())
+	subdomainID, recordID := parseCompositeID(data.ID.ValueString())
+	if subdomainID == 0 || recordID == 0 {
+		resp.Diagnostics.AddError("Invalid resource ID", "Failed to parse composite ID")
 		return
 	}
 
-	// fmt.Println(res)
-	found := false
-	for _, rec := range res.Records {
-		if rec.RecordID == data.ID.ValueString() {
-			if rec.Name != "" {
-				data.Name = types.StringValue(rec.Name)
-			} else {
-				data.Name = types.StringNull()
-			}
-			data.Type = types.StringValue(rec.Type)
-			data.Content = types.StringValue(rec.Content)
-			data.TTL = types.Int64Value(int64(rec.TTL))
-			if rec.Priority != nil {
-				data.Priority = types.Int64Value(int64(*rec.Priority))
-			} else {
-				data.Priority = types.Int64Null()
-			}
-			if rec.Line != "" {
-				data.Line = types.StringValue(rec.Line)
-			} else {
-				data.Line = types.StringNull()
-			}
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		// 说明远端已经不存在该条记录，从本地 State 彻底移除它
+	// 从 API 重新读取最新数据
+	data, err := r.fetchAndUpdateState(ctx, data, subdomainID, recordID)
+	if err != nil {
+		tflog.Warn(ctx, "Record not found, removing from state", map[string]interface{}{"id": data.ID.ValueString()})
 		resp.State.RemoveResource(ctx)
 		return
 	}
@@ -151,14 +165,22 @@ func (r *dnsRecordResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	idInt, _ := strconv.Atoi(plan.ID.ValueString())
+	subdomainID, recordID := parseCompositeID(plan.ID.ValueString())
+	if subdomainID == 0 || recordID == 0 {
+		resp.Diagnostics.AddError("Invalid resource ID", "Failed to parse composite ID")
+		return
+	}
+
+	// 构建 API 请求
 	apiReq := dnshe.UpdateDNSRecordRequest{
-		ID:       idInt,
-		RecordID: plan.ID.ValueString(),
+		ID:       recordID,
+		RecordID: plan.RecordID.ValueString(),
 		Type:     plan.Type.ValueString(),
 		Name:     plan.Name.ValueString(),
 		Content:  plan.Content.ValueString(),
 	}
+
+	// 处理可选字段
 	if !plan.TTL.IsUnknown() && !plan.TTL.IsNull() {
 		apiReq.TTL = int(plan.TTL.ValueInt64())
 	}
@@ -170,9 +192,17 @@ func (r *dnsRecordResource) Update(ctx context.Context, req resource.UpdateReque
 		apiReq.Line = plan.Line.ValueString()
 	}
 
+	// 调用 API 更新记录
 	_, err := r.client.UpdateDNSRecord(apiReq)
 	if err != nil {
-		resp.Diagnostics.AddError("更新解析记录失败", err.Error())
+		resp.Diagnostics.AddError("更新解析记录失败", fmt.Sprintf("RecordID: %s, Error: %v", plan.RecordID.ValueString(), err))
+		return
+	}
+
+	// 从 API 重新读取最新数据
+	plan, err = r.fetchAndUpdateState(ctx, plan, subdomainID, recordID)
+	if err != nil {
+		resp.Diagnostics.AddError("更新后读取记录失败", err.Error())
 		return
 	}
 
@@ -186,10 +216,87 @@ func (r *dnsRecordResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	idInt, _ := strconv.Atoi(data.ID.ValueString())
-	_, err := r.client.DeleteDNSRecord(idInt, data.ID.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("删除解析记录失败", err.Error())
+	_, recordID := parseCompositeID(data.ID.ValueString())
+	if recordID == 0 {
+		resp.Diagnostics.AddError("Invalid resource ID", "Failed to parse record ID")
 		return
 	}
+
+	// 调用 API 删除记录
+	_, err := r.client.DeleteDNSRecord(recordID, "")
+	if err != nil {
+		resp.Diagnostics.AddError("删除解析记录失败", fmt.Sprintf("RecordID: %d, Error: %v", recordID, err))
+		return
+	}
+}
+
+func (r *dnsRecordResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// buildCompositeID 生成组合 ID: dns_record#subdomain_id#record_id
+func buildCompositeID(subdomainID int, recordID int) string {
+	return fmt.Sprintf("dns_record#%d#%d", subdomainID, recordID)
+}
+
+// parseCompositeID 解析组合 ID，返回 (subdomainID, recordID)
+func parseCompositeID(compositeID string) (int, int) {
+	parts := strings.Split(compositeID, "#")
+	if len(parts) != 3 {
+		return 0, 0
+	}
+	subdomainID := cast.ToInt(parts[1])
+	recordID := cast.ToInt(parts[2])
+	return subdomainID, recordID
+}
+
+// fetchAndUpdateState 从 API 获取最新的记录数据并更新模型状态
+func (r *dnsRecordResource) fetchAndUpdateState(ctx context.Context, model dnsRecordResourceModel, subdomainID int, recordID int) (dnsRecordResourceModel, error) {
+	// 列出该子域下的所有记录
+	result, err := r.client.ListDNSRecords(subdomainID)
+	if err != nil {
+		return model, fmt.Errorf("failed to list DNS records: %w", err)
+	}
+
+	// 查找目标记录
+	var targetRecord *dnshe.DNSRecord
+	for _, record := range result.Records {
+		if record.ID == recordID {
+			targetRecord = &record
+			break
+		}
+	}
+
+	if targetRecord == nil {
+		return model, fmt.Errorf("record with ID %d not found in subdomain %d", recordID, subdomainID)
+	}
+
+	// 更新模型字段
+	model.ID = types.StringValue(buildCompositeID(subdomainID, recordID))
+	model.RecordID = types.StringValue(targetRecord.RecordID)
+	model.SubdomainID = types.Int64Value(int64(subdomainID))
+	model.Type = types.StringValue(targetRecord.Type)
+	model.Content = types.StringValue(targetRecord.Content)
+	model.TTL = types.Int64Value(int64(targetRecord.TTL))
+
+	// 处理可选字段
+	if targetRecord.Name != "" {
+		model.Name = types.StringValue(targetRecord.Name)
+	} else {
+		model.Name = types.StringNull()
+	}
+
+	if targetRecord.Priority != nil {
+		model.Priority = types.Int64Value(int64(*targetRecord.Priority))
+	} else {
+		model.Priority = types.Int64Null()
+	}
+
+	if targetRecord.Line != "" {
+		model.Line = types.StringValue(targetRecord.Line)
+	} else {
+		model.Line = types.StringNull()
+	}
+
+	return model, nil
 }

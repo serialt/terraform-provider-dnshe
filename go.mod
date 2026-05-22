@@ -8,6 +8,7 @@ require (
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/hashicorp/terraform-plugin-testing v1.16.0
 	github.com/krabt/req v0.1.0
+	github.com/spf13/cast v1.3.1
 )
 
 require (

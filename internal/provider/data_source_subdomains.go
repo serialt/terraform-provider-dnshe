@@ -71,7 +71,7 @@ func (d *subdomainsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		return
 	}
 
-	data.ID = types.StringValue("list")
+	data.ID = types.StringValue("subdomain_list")
 	data.Subdomains = []subdomainDSModel{}
 	for _, sub := range res.Subdomains {
 		data.Subdomains = append(data.Subdomains, subdomainDSModel{

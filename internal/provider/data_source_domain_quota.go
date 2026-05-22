@@ -25,7 +25,7 @@ type quotaDSModel struct {
 
 func NewQuotaDataSource() datasource.DataSource { return &quotaDataSource{} }
 func (d *quotaDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_dns_quota"
+	resp.TypeName = req.ProviderTypeName + "_domain_quota"
 }
 func (d *quotaDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData != nil {
@@ -51,7 +51,7 @@ func (d *quotaDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		resp.Diagnostics.AddError("API错误", err.Error())
 		return
 	}
-	data.ID = types.StringValue("quota")
+	data.ID = types.StringValue("domain_quota")
 	data.Used = types.Int64Value(int64(res.Quota.Used))
 	data.Base = types.Int64Value(int64(res.Quota.Base))
 	data.InviteBonus = types.Int64Value(int64(res.Quota.InviteBonus))
