@@ -35,17 +35,17 @@ func (p *DNSHEProvider) Schema(ctx context.Context, req provider.SchemaRequest, 
 		MarkdownDescription: "DNSHE Terraform Provider，用于全自动化管理自定义二级域名及 DNS 解析记录。",
 		Attributes: map[string]schema.Attribute{
 			"base_url": schema.StringAttribute{
-				MarkdownDescription: "base_url",
-				Optional:            true,
+				Description: "Base API URL for the DNSHE service. If empty, the provider default will be used.",
+				Optional:    true,
 			},
 			"api_key": schema.StringAttribute{
-				MarkdownDescription: "api_key",
-				Optional:            true,
+				Description: "DNSHE API key used for authenticating requests. Can also be set via the DNSHE_API_KEY environment variable.",
+				Optional:    true,
 			},
 			"api_secret": schema.StringAttribute{
-				MarkdownDescription: "api_secret",
-				Optional:            true,
-				Sensitive:           true,
+				Description: "DNSHE API secret used for authenticating requests. Can also be set via the DNSHE_API_SECRET environment variable. This value is sensitive.",
+				Optional:    true,
+				Sensitive:   true,
 			},
 		},
 	}

@@ -43,22 +43,58 @@ func (d *dnsRecordsDataSource) Configure(_ context.Context, req datasource.Confi
 func (d *dnsRecordsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":           schema.StringAttribute{Computed: true},
-			"subdomain_id": schema.Int64Attribute{Required: true},
+			"id": schema.StringAttribute{
+				Computed:    true,
+				Description: "Computed identifier for this data source (constant 'dns_record').",
+			},
+			"subdomain_id": schema.Int64Attribute{
+				Required:    true,
+				Description: "ID of the subdomain to list DNS records for.",
+			},
 			"records": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"id":        schema.Int64Attribute{Computed: true},
-						"record_id": schema.StringAttribute{Computed: true},
-						"name":      schema.StringAttribute{Computed: true},
-						"type":      schema.StringAttribute{Computed: true},
-						"content":   schema.StringAttribute{Computed: true},
-						"ttl":       schema.Int64Attribute{Computed: true},
-						"priority":  schema.Int64Attribute{Computed: true},
-						"line":      schema.StringAttribute{Computed: true},
-						"proxied":   schema.BoolAttribute{Computed: true},
-						"status":    schema.StringAttribute{Computed: true},
+						"id": schema.Int64Attribute{
+							Computed:    true,
+							Description: "Provider numeric ID for the DNS record.",
+						},
+						"record_id": schema.StringAttribute{
+							Computed:    true,
+							Description: "Provider-assigned unique identifier for the DNS record.",
+						},
+						"name": schema.StringAttribute{
+							Computed:    true,
+							Description: "Record name relative to the zone (empty for the zone root).",
+						},
+						"type": schema.StringAttribute{
+							Computed:    true,
+							Description: "DNS record type (e.g. A, AAAA, CNAME, MX, TXT).",
+						},
+						"content": schema.StringAttribute{
+							Computed:    true,
+							Description: "Value/content of the DNS record (IP, hostname, text, etc.).",
+						},
+						"ttl": schema.Int64Attribute{
+							Computed:    true,
+							Description: "Time to live for the record in seconds.",
+						},
+						"priority": schema.Int64Attribute{
+							Computed:    true,
+							Description: "Priority for MX or SRV records; omitted for types that don't use priority.",
+						},
+						"line": schema.StringAttribute{
+							Computed:    true,
+							Description: "Routing line or WAN line identifier used by the provider (if any).",
+						},
+						"proxied": schema.BoolAttribute{
+							Computed:    true,
+							Description: "Whether the record is proxied by the provider's CDN or proxy feature.",
+						},
+						"status": schema.StringAttribute{
+							Computed:    true,
+							Description: "Current status of the DNS record (e.g. active, pending, disabled).",
+						},
 					},
 				},
 			},

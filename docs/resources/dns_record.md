@@ -27,21 +27,21 @@ resource "dnshe_dns_record" "record" {
 
 ### Required
 
-- `content` (String)
-- `subdomain_id` (Number)
-- `type` (String)
+- `content` (String) Record value/content (IP address, target hostname, text string, etc.).
+- `subdomain_id` (Number) ID of the parent subdomain this DNS record belongs to.
+- `type` (String) DNS record type (e.g., A, AAAA, CNAME, MX, TXT).
 
 ### Optional
 
-- `line` (String)
-- `name` (String)
-- `priority` (Number)
-- `ttl` (Number)
+- `line` (String) Routing line or WAN line identifier used by the provider (optional).
+- `name` (String) Record name (relative to the zone). Use an empty string for the zone root.
+- `priority` (Number) Priority for MX or SRV records. Omit for record types that do not use priority.
+- `ttl` (Number) Time to live in seconds. Defaults to 600 if not specified.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-- `record_id` (String)
+- `id` (String) Computed composite ID in the form dns_record#<subdomain_id>#<record_id>
+- `record_id` (String) Provider-assigned unique identifier for the DNS record.
 
 ## Import
 

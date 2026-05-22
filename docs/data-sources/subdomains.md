@@ -23,12 +23,12 @@ data "dnshe_subdomains" "test_domain" {
 
 ### Optional
 
-- `rootdomain` (String)
-- `search` (String)
+- `rootdomain` (String) Filter results to subdomains under this root domain (e.g. example.com).
+- `search` (String) Search string to filter subdomains by name.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Computed identifier for this data source (constant 'subdomain_list').
 - `subdomains` (Attributes List) (see [below for nested schema](#nestedatt--subdomains))
 
 <a id="nestedatt--subdomains"></a>
@@ -36,15 +36,15 @@ data "dnshe_subdomains" "test_domain" {
 
 Read-Only:
 
-- `cloudflare_zone_id` (String)
-- `created_at` (String)
-- `expires_at` (String)
-- `full_domain` (String)
-- `id` (Number)
-- `never_expires` (Number)
-- `provider_account_id` (Number)
-- `rootdomain` (String)
-- `status` (String)
-- `subdomain` (String)
-- `subdomain_id` (Number)
-- `updated_at` (String)
+- `cloudflare_zone_id` (String) Associated Cloudflare zone ID if the domain is proxied via Cloudflare.
+- `created_at` (String) Timestamp when the subdomain was created (ISO 8601).
+- `expires_at` (String) Expiration timestamp of the subdomain registration (ISO 8601), if applicable.
+- `full_domain` (String) Fully qualified domain name (e.g. sub.example.com).
+- `id` (Number) Provider numeric ID for the subdomain.
+- `never_expires` (Number) Indicator whether the subdomain never expires (1) or not (0).
+- `provider_account_id` (Number) Numeric ID of the provider account that owns the subdomain.
+- `rootdomain` (String) Root domain under which the subdomain is registered.
+- `status` (String) Current provisioning status of the subdomain (e.g. active, pending).
+- `subdomain` (String) Subdomain label (left-most portion of the domain).
+- `subdomain_id` (Number) Numeric ID of the subdomain record.
+- `updated_at` (String) Timestamp of the last update to the subdomain (ISO 8601).

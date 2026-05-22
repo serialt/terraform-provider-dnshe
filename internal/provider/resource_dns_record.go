@@ -55,35 +55,44 @@ func (r *dnsRecordResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,
+				Description:   "Computed composite ID in the form dns_record#<subdomain_id>#<record_id>",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"subdomain_id": schema.Int64Attribute{
-				Required: true,
+				Required:    true,
+				Description: "ID of the parent subdomain this DNS record belongs to.",
 			},
 			"type": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "DNS record type (e.g., A, AAAA, CNAME, MX, TXT).",
 			},
 			"record_id": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Provider-assigned unique identifier for the DNS record.",
 			},
 			"name": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
+				Optional:    true,
+				Computed:    true,
+				Description: "Record name (relative to the zone). Use an empty string for the zone root.",
 			},
 			"content": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "Record value/content (IP address, target hostname, text string, etc.).",
 			},
 			"ttl": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  int64default.StaticInt64(600),
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(600),
+				Description: "Time to live in seconds. Defaults to 600 if not specified.",
 			},
 			"priority": schema.Int64Attribute{
-				Optional: true,
+				Optional:    true,
+				Description: "Priority for MX or SRV records. Omit for record types that do not use priority.",
 			},
 			"line": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
+				Optional:    true,
+				Computed:    true,
+				Description: "Routing line or WAN line identifier used by the provider (optional).",
 			},
 		},
 	}

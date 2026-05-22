@@ -17,9 +17,9 @@ description: |-
 
 ### Read-Only
 
-- `available` (Number)
-- `base` (Number)
-- `id` (String) The ID of this resource.
-- `invite_bonus` (Number)
-- `total` (Number)
-- `used` (Number)
+- `available` (Number) Number of remaining available subdomain slots the account can register.
+- `base` (Number) Base quota allocated to the account before bonuses.
+- `id` (String) Computed identifier for this data source (constant 'domain_quota').
+- `invite_bonus` (Number) Additional quota granted via invitations or promotions.
+- `total` (Number) Total quota available to the account (base plus bonuses).
+- `used` (Number) Number of subdomains already used/registered on the account.

@@ -42,18 +42,54 @@ func (d *subdomainDataSource) Configure(_ context.Context, req datasource.Config
 func (d *subdomainDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":                  schema.Int64Attribute{Computed: true},
-			"subdomain_id":        schema.Int64Attribute{Required: true},
-			"subdomain":           schema.StringAttribute{Computed: true},
-			"rootdomain":          schema.StringAttribute{Computed: true},
-			"full_domain":         schema.StringAttribute{Computed: true},
-			"status":              schema.StringAttribute{Computed: true},
-			"created_at":          schema.StringAttribute{Computed: true},
-			"updated_at":          schema.StringAttribute{Computed: true},
-			"expires_at":          schema.StringAttribute{Computed: true},
-			"never_expires":       schema.Int64Attribute{Computed: true},
-			"cloudflare_zone_id":  schema.StringAttribute{Computed: true},
-			"provider_account_id": schema.Int64Attribute{Computed: true},
+			"id": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Computed provider ID for this subdomain resource.",
+			},
+			"subdomain_id": schema.Int64Attribute{
+				Required:    true,
+				Description: "Numeric ID of the subdomain to look up.",
+			},
+			"subdomain": schema.StringAttribute{
+				Computed:    true,
+				Description: "Subdomain label (left-most portion of the domain).",
+			},
+			"rootdomain": schema.StringAttribute{
+				Computed:    true,
+				Description: "Root domain under which the subdomain is registered.",
+			},
+			"full_domain": schema.StringAttribute{
+				Computed:    true,
+				Description: "Fully qualified domain name (e.g. sub.example.com).",
+			},
+			"status": schema.StringAttribute{
+				Computed:    true,
+				Description: "Current provisioning status of the subdomain (e.g. active, pending).",
+			},
+			"created_at": schema.StringAttribute{
+				Computed:    true,
+				Description: "Timestamp when the subdomain was created (ISO 8601).",
+			},
+			"updated_at": schema.StringAttribute{
+				Computed:    true,
+				Description: "Timestamp of the last update to the subdomain (ISO 8601).",
+			},
+			"expires_at": schema.StringAttribute{
+				Computed:    true,
+				Description: "Expiration timestamp of the subdomain registration (ISO 8601), if applicable.",
+			},
+			"never_expires": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Indicator whether the subdomain never expires (1) or not (0).",
+			},
+			"cloudflare_zone_id": schema.StringAttribute{
+				Computed:    true,
+				Description: "Associated Cloudflare zone ID if the domain is proxied via Cloudflare.",
+			},
+			"provider_account_id": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Numeric ID of the provider account that owns the subdomain.",
+			},
 		},
 	}
 }

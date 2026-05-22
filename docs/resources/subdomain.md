@@ -24,16 +24,16 @@ resource "dnshe_subdomain" "record" {
 
 ### Required
 
-- `rootdomain` (String)
-- `subdomain` (String)
+- `rootdomain` (String) Root domain under which the subdomain is registered (e.g. example.com).
+- `subdomain` (String) Subdomain label (the left-most portion of the domain, e.g. 'app' for app.example.com).
 
 ### Optional
 
-- `auto_renew` (Boolean)
+- `auto_renew` (Boolean) Whether the subdomain is configured to auto-renew at expiration. This is used for UI/automation and may be ignored by the provider.
 
 ### Read-Only
 
-- `expires_at` (String)
-- `full_domain` (String)
-- `id` (Number) The ID of this resource.
-- `status` (String)
+- `expires_at` (String) Expiration timestamp of the subdomain registration in ISO 8601 format, if applicable.
+- `full_domain` (String) Fully qualified domain name of the registered subdomain (e.g. app.example.com).
+- `id` (Number) Computed numeric ID of the subdomain resource assigned by the provider.
+- `status` (String) Current provisioning status of the subdomain (e.g. active, pending, deleted).

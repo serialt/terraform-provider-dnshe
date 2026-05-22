@@ -35,12 +35,30 @@ func (d *quotaDataSource) Configure(_ context.Context, req datasource.ConfigureR
 func (d *quotaDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":           schema.StringAttribute{Computed: true},
-			"used":         schema.Int64Attribute{Computed: true},
-			"base":         schema.Int64Attribute{Computed: true},
-			"invite_bonus": schema.Int64Attribute{Computed: true},
-			"total":        schema.Int64Attribute{Computed: true},
-			"available":    schema.Int64Attribute{Computed: true},
+			"id": schema.StringAttribute{
+				Computed:    true,
+				Description: "Computed identifier for this data source (constant 'domain_quota').",
+			},
+			"used": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Number of subdomains already used/registered on the account.",
+			},
+			"base": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Base quota allocated to the account before bonuses.",
+			},
+			"invite_bonus": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Additional quota granted via invitations or promotions.",
+			},
+			"total": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Total quota available to the account (base plus bonuses).",
+			},
+			"available": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Number of remaining available subdomain slots the account can register.",
+			},
 		},
 	}
 }

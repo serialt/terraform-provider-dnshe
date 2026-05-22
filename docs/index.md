@@ -38,6 +38,6 @@ provider "dnshe" {
 
 ### Optional
 
-- `api_key` (String) api_key
-- `api_secret` (String, Sensitive) api_secret
-- `base_url` (String) base_url
+- `api_key` (String) DNSHE API key used for authenticating requests. Can also be set via the DNSHE_API_KEY environment variable.
+- `api_secret` (String, Sensitive) DNSHE API secret used for authenticating requests. Can also be set via the DNSHE_API_SECRET environment variable. This value is sensitive.
+- `base_url` (String) Base API URL for the DNSHE service. If empty, the provider default will be used.

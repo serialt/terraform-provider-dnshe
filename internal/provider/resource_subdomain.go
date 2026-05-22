@@ -41,14 +41,33 @@ func (r *subdomainResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Computed:      true,
+				Description:   "Computed numeric ID of the subdomain resource assigned by the provider.",
 				PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 			},
-			"subdomain":   schema.StringAttribute{Required: true},
-			"rootdomain":  schema.StringAttribute{Required: true},
-			"full_domain": schema.StringAttribute{Computed: true},
-			"status":      schema.StringAttribute{Computed: true},
-			"expires_at":  schema.StringAttribute{Computed: true},
-			"auto_renew":  schema.BoolAttribute{Optional: true},
+			"subdomain": schema.StringAttribute{
+				Required:    true,
+				Description: "Subdomain label (the left-most portion of the domain, e.g. 'app' for app.example.com).",
+			},
+			"rootdomain": schema.StringAttribute{
+				Required:    true,
+				Description: "Root domain under which the subdomain is registered (e.g. example.com).",
+			},
+			"full_domain": schema.StringAttribute{
+				Computed:    true,
+				Description: "Fully qualified domain name of the registered subdomain (e.g. app.example.com).",
+			},
+			"status": schema.StringAttribute{
+				Computed:    true,
+				Description: "Current provisioning status of the subdomain (e.g. active, pending, deleted).",
+			},
+			"expires_at": schema.StringAttribute{
+				Computed:    true,
+				Description: "Expiration timestamp of the subdomain registration in ISO 8601 format, if applicable.",
+			},
+			"auto_renew": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Whether the subdomain is configured to auto-renew at expiration. This is used for UI/automation and may be ignored by the provider.",
+			},
 		},
 	}
 }

@@ -23,11 +23,11 @@ data "dnshe_dns_records" "test_records" {
 
 ### Required
 
-- `subdomain_id` (Number)
+- `subdomain_id` (Number) ID of the subdomain to list DNS records for.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Computed identifier for this data source (constant 'dns_record').
 - `records` (Attributes List) (see [below for nested schema](#nestedatt--records))
 
 <a id="nestedatt--records"></a>
@@ -35,13 +35,13 @@ data "dnshe_dns_records" "test_records" {
 
 Read-Only:
 
-- `content` (String)
-- `id` (Number)
-- `line` (String)
-- `name` (String)
-- `priority` (Number)
-- `proxied` (Boolean)
-- `record_id` (String)
-- `status` (String)
-- `ttl` (Number)
-- `type` (String)
+- `content` (String) Value/content of the DNS record (IP, hostname, text, etc.).
+- `id` (Number) Provider numeric ID for the DNS record.
+- `line` (String) Routing line or WAN line identifier used by the provider (if any).
+- `name` (String) Record name relative to the zone (empty for the zone root).
+- `priority` (Number) Priority for MX or SRV records; omitted for types that don't use priority.
+- `proxied` (Boolean) Whether the record is proxied by the provider's CDN or proxy feature.
+- `record_id` (String) Provider-assigned unique identifier for the DNS record.
+- `status` (String) Current status of the DNS record (e.g. active, pending, disabled).
+- `ttl` (Number) Time to live for the record in seconds.
+- `type` (String) DNS record type (e.g. A, AAAA, CNAME, MX, TXT).

@@ -23,18 +23,18 @@ data "dnshe_subdomain" "test_domain_single" {
 
 ### Required
 
-- `subdomain_id` (Number)
+- `subdomain_id` (Number) Numeric ID of the subdomain to look up.
 
 ### Read-Only
 
-- `cloudflare_zone_id` (String)
-- `created_at` (String)
-- `expires_at` (String)
-- `full_domain` (String)
-- `id` (Number) The ID of this resource.
-- `never_expires` (Number)
-- `provider_account_id` (Number)
-- `rootdomain` (String)
-- `status` (String)
-- `subdomain` (String)
-- `updated_at` (String)
+- `cloudflare_zone_id` (String) Associated Cloudflare zone ID if the domain is proxied via Cloudflare.
+- `created_at` (String) Timestamp when the subdomain was created (ISO 8601).
+- `expires_at` (String) Expiration timestamp of the subdomain registration (ISO 8601), if applicable.
+- `full_domain` (String) Fully qualified domain name (e.g. sub.example.com).
+- `id` (Number) Computed provider ID for this subdomain resource.
+- `never_expires` (Number) Indicator whether the subdomain never expires (1) or not (0).
+- `provider_account_id` (Number) Numeric ID of the provider account that owns the subdomain.
+- `rootdomain` (String) Root domain under which the subdomain is registered.
+- `status` (String) Current provisioning status of the subdomain (e.g. active, pending).
+- `subdomain` (String) Subdomain label (left-most portion of the domain).
+- `updated_at` (String) Timestamp of the last update to the subdomain (ISO 8601).
