@@ -13,12 +13,23 @@ DNSHE Terraform Provider，用于全自动化管理自定义二级域名及 DNS 
 ## Example Usage
 
 ```terraform
+terraform {
+  required_providers {
+    dnshe = {
+      source = "serialt/dnshe"
+    }
+  }
+
+}
+
 # Provider with default values
 provider "dnshe" {
   base_url   = "https://api005.dnshe.com/index.php?m=domain_hub"
   api_key    = "xxxxx"
   api_secret = "xxxxxxxxxx"
 
+  # DNSHE_API_KEY = ""
+  # DNSHE_API_SECRET = ""
 }
 ```
 

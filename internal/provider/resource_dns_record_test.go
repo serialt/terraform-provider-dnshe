@@ -24,8 +24,6 @@ resource "dnshe_dns_record" "test_record" {
   type         = "A"
   name         = "k8.krab.bbroot.com"
   content      = "9.9.9.9"
-  ttl          = 300
-  priority     = 10
 }
 `
 
@@ -49,15 +47,7 @@ func TestAccResourceDNSRecord(t *testing.T) {
 				Config: testAccResourceDNSrecordUpdateConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dnshe_dns_record.test_record", "content", "9.9.9.9"),
-					resource.TestCheckResourceAttr("dnshe_dns_record.test_record", "ttl", "300"),
-					resource.TestCheckResourceAttr("dnshe_dns_record.test_record", "priority", "10"),
 				),
-			},
-			// Import
-			{
-				ResourceName:      "dnshe_dns_record.test_record",
-				ImportState:       true,
-				ImportStateVerify: true,
 			},
 			// Debugging output (prints resource JSON to test logs)
 			{

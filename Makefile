@@ -9,6 +9,9 @@ install: build
 lint:
 	golangci-lint run
 
+doc:
+	cd tools; go generate ./...
+
 generate:
 	cd tools; go generate ./...
 

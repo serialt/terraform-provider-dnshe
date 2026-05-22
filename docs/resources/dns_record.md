@@ -41,3 +41,15 @@ resource "dnshe_dns_record" "record" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+- `record_id` (String)
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# dns_record#{subdomainId}#"{id}"  
+# dns_record#500xxxx0#92xxxxx  
+# 
+terraform import dnshe_dns_record.test_record "dns_record#500xxxx0#92xxxxx"
+```
