@@ -182,11 +182,10 @@ func (r *dnsRecordResource) Update(ctx context.Context, req resource.UpdateReque
 
 	// 构建 API 请求
 	apiReq := dnshe.UpdateDNSRecordRequest{
-		ID:       recordID,
-		RecordID: plan.RecordID.ValueString(),
-		Type:     plan.Type.ValueString(),
-		Name:     plan.Name.ValueString(),
-		Content:  plan.Content.ValueString(),
+		ID:      recordID,
+		Type:    plan.Type.ValueString(),
+		Name:    plan.Name.ValueString(),
+		Content: plan.Content.ValueString(),
 	}
 
 	// 处理可选字段
@@ -261,15 +260,15 @@ func parseCompositeID(compositeID string) (int, int) {
 
 // fetchAndUpdateState 从 API 获取最新的记录数据并更新模型状态
 func (r *dnsRecordResource) fetchAndUpdateState(ctx context.Context, model dnsRecordResourceModel, subdomainID int, recordID int) (dnsRecordResourceModel, error) {
-	// 列出该子域下的所有记录
-	result, err := r.client.ListDNSRecords(subdomainID)
+
+	subdomain, err := r.client.GetSubdomain(subdomainID)
 	if err != nil {
 		return model, fmt.Errorf("failed to list DNS records: %w", err)
 	}
 
 	// 查找目标记录
 	var targetRecord *dnshe.DNSRecord
-	for _, record := range result.Records {
+	for _, record := range subdomain.DNSRecords {
 		if record.ID == recordID {
 			targetRecord = &record
 			break
@@ -279,6 +278,7 @@ func (r *dnsRecordResource) fetchAndUpdateState(ctx context.Context, model dnsRe
 	if targetRecord == nil {
 		return model, fmt.Errorf("record with ID %d not found in subdomain %d", recordID, subdomainID)
 	}
+	// value := strings.TrimSuffix(targetRecord.Content, fmt.Sprintf(".%v", subdomain.Subdomain.FullDomain))
 
 	// 更新模型字段
 	model.ID = types.StringValue(buildCompositeID(subdomainID, recordID))
@@ -290,7 +290,8 @@ func (r *dnsRecordResource) fetchAndUpdateState(ctx context.Context, model dnsRe
 
 	// 处理可选字段
 	if targetRecord.Name != "" {
-		model.Name = types.StringValue(targetRecord.Name)
+		value := strings.TrimSuffix(targetRecord.Name, fmt.Sprintf(".%v", subdomain.Subdomain.FullDomain))
+		model.Name = types.StringValue(value)
 	} else {
 		model.Name = types.StringNull()
 	}

@@ -13,7 +13,7 @@ const testAccResourceDNSrecordCreateConfig = `
 resource "dnshe_dns_record" "test_record" {
   subdomain_id = "5004916620"
   type         = "A"
-  name         = "k8.krab.bbroot.com"
+  name         = "999.krab.bbroot.com"
   content      = "1.1.1.1"
 }
 `
@@ -22,7 +22,7 @@ const testAccResourceDNSrecordUpdateConfig = `
 resource "dnshe_dns_record" "test_record" {
   subdomain_id = "5004916620"
   type         = "A"
-  name         = "k8.krab.bbroot.com"
+  name         = "999.krab.bbroot.com"
   content      = "9.9.9.9"
 }
 `
