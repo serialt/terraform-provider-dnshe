@@ -1,6 +1,6 @@
 module github.com/serialt/terraform-provider-dnshe
 
-go 1.26.2
+go 1.26
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
