@@ -3,8 +3,12 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/serialt/terraform-provider-dnshe/dnshe"
 )
@@ -28,6 +32,7 @@ type dnsRecordModel struct {
 type dnsRecordsDSModel struct {
 	ID          types.String     `tfsdk:"id"`
 	SubdomainID types.Int64      `tfsdk:"subdomain_id"`
+	Subdomain   types.String     `tfsdk:"subdomain"`
 	Records     []dnsRecordModel `tfsdk:"records"`
 }
 
@@ -48,9 +53,22 @@ func (d *dnsRecordsDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 				Description: "Computed identifier for this data source (constant 'dns_record').",
 			},
 			"subdomain_id": schema.Int64Attribute{
-				Required:    true,
+				Optional:    true,
 				Description: "ID of the subdomain to list DNS records for.",
+				Validators: []validator.Int64{
+					// 当 subdomain_id 存在时，确保 subdomain 没有被设置
+					int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("subdomain")),
+				},
 			},
+			"subdomain": schema.StringAttribute{
+				Optional:    true,
+				Description: "Subdomain name.",
+				Validators: []validator.String{
+					// 当 subdomain 存在时，确保 subdomain_id 没有被设置
+					stringvalidator.ConflictsWith(path.MatchRelative().AtParent().AtName("subdomain_id")),
+				},
+			},
+
 			"records": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
@@ -107,8 +125,31 @@ func (d *dnsRecordsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if data.SubdomainID.IsNull() && data.Subdomain.IsNull() {
+		resp.Diagnostics.AddError("Params err", "Please set subdomain_id or subdomain")
+		return
+	}
+	var subdomainId int
+	if !data.SubdomainID.IsNull() {
+		subdomainId = int(data.SubdomainID.ValueInt64())
+	}
+	// 如果子域名存在，则优先查询子域名
+	if !data.Subdomain.IsNull() {
+		subdomainResp, err := d.client.ListSubdomains(dnshe.ListSubdomainsParams{
+			Search: data.Subdomain.ValueString(),
+		})
+		if err != nil {
+			resp.Diagnostics.AddError("API err", err.Error())
+			return
+		}
+		if subdomainResp.Count != 1 {
+			resp.Diagnostics.AddError("API err", "Multiple records found. ")
+			return
+		}
+		subdomainId = subdomainResp.Subdomains[0].ID
+	}
 
-	res, err := d.client.ListDNSRecords(int(data.SubdomainID.ValueInt64()))
+	res, err := d.client.ListDNSRecords(subdomainId)
 	if err != nil {
 		resp.Diagnostics.AddError("API错误", err.Error())
 		return

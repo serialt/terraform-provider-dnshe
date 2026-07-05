@@ -27,10 +27,6 @@ resource "dnshe_subdomain" "record" {
 - `rootdomain` (String) Root domain under which the subdomain is registered (e.g. example.com).
 - `subdomain` (String) Subdomain label (the left-most portion of the domain, e.g. 'app' for app.example.com).
 
-### Optional
-
-- `auto_renew` (Boolean) Whether the subdomain is configured to auto-renew at expiration. This is used for UI/automation and may be ignored by the provider.
-
 ### Read-Only
 
 - `expires_at` (String) Expiration timestamp of the subdomain registration in ISO 8601 format, if applicable.

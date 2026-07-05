@@ -3,8 +3,12 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/serialt/terraform-provider-dnshe/dnshe"
 )
@@ -47,12 +51,20 @@ func (d *subdomainDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 				Description: "Computed provider ID for this subdomain resource.",
 			},
 			"subdomain_id": schema.Int64Attribute{
-				Required:    true,
+				Optional:    true,
 				Description: "Numeric ID of the subdomain to look up.",
+				Validators: []validator.Int64{
+					// 当 subdomain_id 存在时，确保 subdomain 没有被设置
+					int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("subdomain")),
+				},
 			},
 			"subdomain": schema.StringAttribute{
-				Computed:    true,
+				Optional:    true,
 				Description: "Subdomain label (left-most portion of the domain).",
+				Validators: []validator.String{
+					// 当 subdomain 存在时，确保 subdomain_id 没有被设置
+					stringvalidator.ConflictsWith(path.MatchRelative().AtParent().AtName("subdomain_id")),
+				},
 			},
 			"rootdomain": schema.StringAttribute{
 				Computed:    true,
@@ -99,8 +111,27 @@ func (d *subdomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	var subdomainId int
+	if !data.SubdomainID.IsNull() {
+		subdomainId = int(data.SubdomainID.ValueInt64())
+	}
+	// 如果子域名存在，则优先查询子域名
+	if !data.Subdomain.IsNull() {
+		subdomainResp, err := d.client.ListSubdomains(dnshe.ListSubdomainsParams{
+			Search: data.Subdomain.ValueString(),
+		})
+		if err != nil {
+			resp.Diagnostics.AddError("API err", err.Error())
+			return
+		}
+		if subdomainResp.Count != 1 {
+			resp.Diagnostics.AddError("API err", "Multiple records found. ")
+			return
+		}
+		subdomainId = subdomainResp.Subdomains[0].ID
+	}
 
-	res, err := d.client.GetSubdomain(int(data.SubdomainID.ValueInt64()))
+	res, err := d.client.GetSubdomain(subdomainId)
 	if err != nil {
 		resp.Diagnostics.AddError("API错误", err.Error())
 		return

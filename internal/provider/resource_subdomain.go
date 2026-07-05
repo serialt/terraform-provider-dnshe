@@ -2,14 +2,13 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/serialt/terraform-provider-dnshe/dnshe"
 )
 
@@ -24,7 +23,6 @@ type subdomainResourceModel struct {
 	FullDomain types.String `tfsdk:"full_domain"`
 	Status     types.String `tfsdk:"status"`
 	ExpiresAt  types.String `tfsdk:"expires_at"`
-	AutoRenew  types.Bool   `tfsdk:"auto_renew"` // 供架构联动，非必须
 }
 
 func NewSubdomainResource() resource.Resource { return &subdomainResource{} }
@@ -64,10 +62,6 @@ func (r *subdomainResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Computed:    true,
 				Description: "Expiration timestamp of the subdomain registration in ISO 8601 format, if applicable.",
 			},
-			"auto_renew": schema.BoolAttribute{
-				Optional:    true,
-				Description: "Whether the subdomain is configured to auto-renew at expiration. This is used for UI/automation and may be ignored by the provider.",
-			},
 		},
 	}
 }
@@ -88,8 +82,12 @@ func (r *subdomainResource) Create(ctx context.Context, req resource.CreateReque
 	data.ID = types.Int64Value(int64(res.SubdomainID))
 	data.FullDomain = types.StringValue(res.FullDomain)
 
-	// 通过 Read 同步额外字段状态 (如 Status 和 ExpiresAt)
-	r.readIntoModel(ctx, int(data.ID.ValueInt64()), &data, &resp.Diagnostics)
+	data, err = r.fetchAndUpdateState(ctx, data, int64(res.SubdomainID))
+	if err != nil {
+		tflog.Error(ctx, "Failed to fetch created record", map[string]interface{}{"error": err.Error()})
+		resp.State.RemoveResource(ctx)
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -100,11 +98,12 @@ func (r *subdomainResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	r.readIntoModel(ctx, int(data.ID.ValueInt64()), &data, &resp.Diagnostics)
-	if resp.Diagnostics.HasError() {
+	data, err := r.fetchAndUpdateState(ctx, data, data.ID.ValueInt64())
+	if err != nil {
+		tflog.Warn(ctx, "Record not found, removing from state", map[string]interface{}{"id": data.ID.ValueInt64()})
+		resp.State.RemoveResource(ctx)
 		return
 	}
-
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -116,16 +115,7 @@ func (r *subdomainResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	// 根据 API 特性：如果改了名字，只能走先删后建。
-	// 这里我们演示对存量域名触发官方提供的 RenewSubdomain(id) 的续期链路
-	_, err := r.client.RenewSubdomain(int(state.ID.ValueInt64()))
-	if err != nil {
-		resp.Diagnostics.AddError("续期失败", err.Error())
-		return
-	}
-
-	plan.ID = state.ID
-	r.readIntoModel(ctx, int(plan.ID.ValueInt64()), &plan, &resp.Diagnostics)
+	tflog.Info(ctx, "Please modify subdomain in web")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -143,13 +133,18 @@ func (r *subdomainResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 }
 
-func (r *subdomainResource) readIntoModel(_ context.Context, id int, model *subdomainResourceModel, diags *diag.Diagnostics) {
-	res, err := r.client.GetSubdomain(id)
+// fetchAndUpdateState 从 API 获取最新的记录数据并更新模型状态
+func (r *subdomainResource) fetchAndUpdateState(ctx context.Context, model subdomainResourceModel, subdomainID int64) (subdomainResourceModel, error) {
+	domainResp, err := r.client.GetSubdomain((int(subdomainID)))
 	if err != nil {
-		diags.AddError("查询详情失败", fmt.Sprintf("ID %d 无法加载: %s", id, err.Error()))
-		return
+		return model, err
 	}
-	model.Status = types.StringValue(res.Subdomain.Status)
-	model.ExpiresAt = types.StringValue(res.Subdomain.ExpiresAt)
-	model.FullDomain = types.StringValue(res.Subdomain.FullDomain)
+
+	subdomain := domainResp.Subdomain
+	model.FullDomain = types.StringValue(subdomain.FullDomain)
+	model.Status = types.StringValue(subdomain.Status)
+	model.ExpiresAt = types.StringValue(subdomain.ExpiresAt)
+	model.ID = types.Int64Value(int64(subdomain.ID))
+
+	return model, err
 }
