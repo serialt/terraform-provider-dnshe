@@ -13,7 +13,7 @@ description: |-
 ## Example Usage
 
 ```terraform
-data "dnshe_dns_quota" "test_quota" {
+data "dnshe_domain_quota" "test_quota" {
 }
 ```
 
