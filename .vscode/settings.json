@@ -1,0 +1,8 @@
+{
+    "go.toolsEnvVars": {
+        "TF_LOG": "DEBUG",
+        "TF_ACC": "1",
+        "DNSHE_API_KEY": "${env:DNSHE_API_KEY}",
+        "DNSHE_API_SECRET": "${env:DNSHE_API_SECRET}"
+    },
+}
